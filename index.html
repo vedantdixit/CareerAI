@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CareerAI — Your Personal Career Guide</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { background: #07070f; color: #e2e8f0; font-family: 'Inter', system-ui, sans-serif; }
+  .hidden { display: none !important; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: #12121e; }
+  ::-webkit-scrollbar-thumb { background: #4c1d95; border-radius: 3px; }
+
+  /* Chat bubble */
+  .bubble-ai { background: #1a1a2e; border: 1px solid #2d2d4a; border-radius: 18px 18px 18px 4px; }
+  .bubble-user { background: #5b21b6; border-radius: 18px 18px 4px 18px; }
+
+  /* Card hover */
+  .topic-card { transition: all .2s; border: 1px solid #1e1e30; }
+  .topic-card:hover { border-color: #5b21b6; transform: translateY(-2px); }
+  .topic-card.completed { border-color: #065f46; background: #022c22; }
+  .topic-card.locked { opacity: .5; pointer-events: none; }
+
+  /* Progress bar animation */
+  .progress-fill { transition: width 1s ease; }
+
+  /* Pulse dot */
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .pulse { animation: pulse 1.5s ease-in-out infinite; }
+
+  /* Typing dots */
+  @keyframes bounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-6px)} }
+  .dot { animation: bounce 1.4s infinite ease-in-out; display:inline-block; width:6px; height:6px; border-radius:50%; background:#a78bfa; }
+  .dot:nth-child(2){animation-delay:.2s} .dot:nth-child(3){animation-delay:.4s}
+
+  /* Nav */
+  .nav-btn.active { background: #4c1d95; color: white; }
+
+  /* Quiz option */
+  .option-btn { transition: all .15s; }
+  .option-btn:hover { border-color: #7c3aed; background: #1e1e30; }
+  .option-btn.correct { background: #022c22; border-color: #10b981; color: #6ee7b7; }
+  .option-btn.wrong { background: #2d0a0a; border-color: #ef4444; color: #fca5a5; }
+  .option-btn.reveal { background: #1a2840; border-color: #3b82f6; }
+
+  input, textarea, select {
+    background: #12121e;
+    border: 1px solid #2d2d4a;
+    color: #e2e8f0;
+    border-radius: 12px;
+    outline: none;
+    transition: border-color .2s;
+  }
+  input:focus, textarea:focus, select:focus { border-color: #7c3aed; }
+  select option { background: #12121e; }
+</style>
+</head>
+<body class="min-h-screen">
+
+<!-- ══════════════════ VIEW: WELCOME ══════════════════ -->
+<div id="view-welcome" class="min-h-screen flex items-center justify-center px-4">
+  <div class="w-full max-w-md space-y-8">
+    <div class="text-center space-y-3">
+      <div class="text-5xl mb-2">🚀</div>
+      <h1 class="text-4xl font-bold">CareerAI</h1>
+      <p class="text-slate-400 text-sm">Your personal AI career guide.<br/>We'll assess your skills, build your roadmap, and track your growth.</p>
+    </div>
+
+    <div class="bg-[#12121e] rounded-2xl p-6 space-y-5 border border-[#2d2d4a]">
+      <div>
+        <label class="text-xs font-semibold uppercase tracking-widest text-slate-500 block mb-2">Your Name</label>
+        <input id="inp-name" type="text" placeholder="e.g. Vedant" class="w-full px-4 py-3 text-sm" />
+      </div>
+      <div>
+        <label class="text-xs font-semibold uppercase tracking-widest text-slate-500 block mb-2">Career Goal</label>
+        <input id="inp-goal" type="text" list="career-suggestions"
+          placeholder="e.g. Python Developer, DevOps Engineer..."
+          class="w-full px-4 py-3 text-sm" autocomplete="off" />
+        <datalist id="career-suggestions">
+          <option value="Python Developer">
+          <option value="Full Stack Web Developer">
+          <option value="Frontend Developer">
+          <option value="Backend Developer">
+          <option value="Data Scientist">
+          <option value="Machine Learning Engineer">
+          <option value="AI / GenAI Engineer">
+          <option value="DevOps / Cloud Engineer">
+          <option value="Site Reliability Engineer (SRE)">
+          <option value="Mobile App Developer (Android)">
+          <option value="Mobile App Developer (iOS)">
+          <option value="Cybersecurity Analyst">
+          <option value="Blockchain Developer">
+          <option value="Game Developer">
+          <option value="Embedded Systems Engineer">
+          <option value="QA / Test Automation Engineer">
+          <option value="Database Administrator">
+          <option value="System Design Engineer">
+        </datalist>
+        <p class="text-xs text-slate-600 mt-1.5">Type anything — or pick from suggestions</p>
+      </div>
+      <button onclick="startAssessment()" class="w-full py-3.5 bg-violet-700 hover:bg-violet-600 active:scale-[.98] rounded-xl font-semibold text-sm transition-all">
+        Start Assessment →
+      </button>
+    </div>
+
+    <p class="text-center text-xs text-slate-600">Takes about 3 minutes · Completely free</p>
+  </div>
+</div>
+
+<!-- ══════════════════ VIEW: CHAT ASSESSMENT ══════════════════ -->
+<div id="view-chat" class="hidden min-h-screen flex flex-col">
+  <header class="px-4 py-4 border-b border-[#1e1e30] flex items-center gap-3 bg-[#0a0a14]">
+    <div class="w-8 h-8 rounded-full bg-violet-700 flex items-center justify-center text-sm">🤖</div>
+    <div>
+      <div class="font-semibold text-sm">CareerAI Assessment</div>
+      <div id="chat-subtitle" class="text-xs text-slate-500">Assessing your skills...</div>
+    </div>
+    <div class="ml-auto flex items-center gap-1.5">
+      <div class="w-2 h-2 rounded-full bg-emerald-500 pulse"></div>
+      <span class="text-xs text-slate-500">Live</span>
+    </div>
+  </header>
+
+  <div id="chat-messages" class="flex-1 overflow-y-auto px-4 py-4 space-y-3 max-w-2xl w-full mx-auto"></div>
+
+  <div id="chat-input-area" class="px-4 py-4 border-t border-[#1e1e30] max-w-2xl w-full mx-auto">
+    <div class="flex gap-2">
+      <input id="chat-input" type="text" placeholder="Type your answer..." class="flex-1 px-4 py-3 text-sm rounded-xl"
+        onkeydown="if(event.key==='Enter') sendMessage()" />
+      <button onclick="sendMessage()" id="send-btn"
+        class="px-5 py-3 bg-violet-700 hover:bg-violet-600 rounded-xl font-semibold text-sm transition-all">Send</button>
+    </div>
+  </div>
+
+  <!-- After assessment complete -->
+  <div id="roadmap-cta" class="hidden px-4 pb-4 max-w-2xl w-full mx-auto">
+    <button onclick="generateRoadmap()"
+      class="w-full py-4 bg-gradient-to-r from-violet-700 to-purple-600 hover:from-violet-600 hover:to-purple-500 rounded-xl font-bold text-sm tracking-wide transition-all animate-pulse">
+      ✨ Generate My Personalized Roadmap →
+    </button>
+  </div>
+</div>
+
+<!-- ══════════════════ VIEW: ROADMAP ══════════════════ -->
+<div id="view-roadmap" class="hidden min-h-screen">
+  <!-- Nav -->
+  <nav class="sticky top-0 z-10 bg-[#0a0a14] border-b border-[#1e1e30] px-4 py-3 flex items-center gap-2">
+    <div class="text-violet-400 font-bold text-sm">🚀 CareerAI</div>
+    <div class="ml-auto flex gap-2">
+      <button onclick="showView('roadmap')" id="nav-roadmap" class="nav-btn active text-xs px-3 py-1.5 rounded-lg font-medium transition-all text-slate-300">Roadmap</button>
+      <button onclick="showDashboard()" id="nav-dashboard" class="nav-btn text-xs px-3 py-1.5 rounded-lg font-medium transition-all text-slate-300">Dashboard</button>
+    </div>
+  </nav>
+
+  <div class="max-w-2xl mx-auto px-4 py-8 space-y-6">
+    <!-- Header -->
+    <div class="space-y-1">
+      <h2 class="text-2xl font-bold" id="roadmap-title">Your Roadmap</h2>
+      <p id="roadmap-subtitle" class="text-slate-400 text-sm"></p>
+    </div>
+
+    <!-- Overall progress -->
+    <div class="bg-[#12121e] rounded-2xl p-4 border border-[#2d2d4a]">
+      <div class="flex justify-between items-center mb-2">
+        <span class="text-xs font-semibold uppercase tracking-widest text-slate-500">Overall Progress</span>
+        <span id="progress-pct" class="text-sm font-bold text-violet-400">0%</span>
+      </div>
+      <div class="h-2 bg-[#1e1e30] rounded-full overflow-hidden">
+        <div id="progress-bar" class="progress-fill h-full bg-gradient-to-r from-violet-600 to-purple-500 rounded-full" style="width:0%"></div>
+      </div>
+    </div>
+
+    <!-- Topics -->
+    <div id="roadmap-topics" class="space-y-3"></div>
+  </div>
+</div>
+
+<!-- ══════════════════ VIEW: QUIZ ══════════════════ -->
+<div id="view-quiz" class="hidden min-h-screen">
+  <div class="max-w-xl mx-auto px-4 py-8 space-y-6">
+    <button onclick="showView('roadmap')" class="text-slate-500 hover:text-white text-sm flex items-center gap-1 transition-colors">← Back to Roadmap</button>
+
+    <div class="space-y-1">
+      <div id="quiz-topic-name" class="text-xs font-semibold uppercase tracking-widest text-violet-400"></div>
+      <h2 class="text-xl font-bold">Knowledge Assessment</h2>
+    </div>
+
+    <!-- Quiz progress -->
+    <div class="flex items-center gap-3">
+      <span id="quiz-q-num" class="text-xs text-slate-500">Question 1 of 5</span>
+      <div class="flex-1 h-1.5 bg-[#1e1e30] rounded-full overflow-hidden">
+        <div id="quiz-progress" class="progress-fill h-full bg-violet-600 rounded-full" style="width:0%"></div>
+      </div>
+    </div>
+
+    <!-- Question card -->
+    <div id="quiz-card" class="bg-[#12121e] rounded-2xl p-6 border border-[#2d2d4a] space-y-5">
+      <div id="quiz-loading" class="py-8 text-center space-y-3">
+        <div class="space-x-1">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        </div>
+        <p class="text-slate-500 text-sm">Generating questions...</p>
+      </div>
+      <div id="quiz-content" class="hidden space-y-5">
+        <p id="quiz-question" class="text-base font-medium leading-relaxed"></p>
+        <div id="quiz-options" class="space-y-2.5"></div>
+        <div id="quiz-explanation" class="hidden bg-[#1e1e30] rounded-xl p-3 text-sm text-slate-300 border border-[#2d2d4a]"></div>
+        <button id="quiz-next-btn" onclick="nextQuestion()" class="hidden w-full py-3 bg-violet-700 hover:bg-violet-600 rounded-xl font-semibold text-sm transition-all">
+          Next Question →
+        </button>
+      </div>
+    </div>
+
+    <!-- Result card (shown after quiz) -->
+    <div id="quiz-result" class="hidden bg-[#12121e] rounded-2xl p-6 border border-[#2d2d4a] text-center space-y-4">
+      <div id="result-icon" class="text-5xl"></div>
+      <div>
+        <div id="result-score" class="text-3xl font-bold"></div>
+        <div id="result-msg" class="text-slate-400 text-sm mt-1"></div>
+      </div>
+      <div id="result-next" class="space-y-2"></div>
+      <button onclick="showView('roadmap')" class="w-full py-3 border border-[#2d2d4a] hover:border-violet-700 rounded-xl text-sm font-medium transition-all">
+        Back to Roadmap
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ VIEW: DASHBOARD ══════════════════ -->
+<div id="view-dashboard" class="hidden min-h-screen">
+  <nav class="sticky top-0 z-10 bg-[#0a0a14] border-b border-[#1e1e30] px-4 py-3 flex items-center gap-2">
+    <div class="text-violet-400 font-bold text-sm">🚀 CareerAI</div>
+    <div class="ml-auto flex gap-2">
+      <button onclick="showView('roadmap')" id="nav-roadmap2" class="nav-btn text-xs px-3 py-1.5 rounded-lg font-medium transition-all text-slate-300">Roadmap</button>
+      <button onclick="showDashboard()" id="nav-dashboard2" class="nav-btn active text-xs px-3 py-1.5 rounded-lg font-medium transition-all text-slate-300">Dashboard</button>
+    </div>
+  </nav>
+
+  <div class="max-w-2xl mx-auto px-4 py-8 space-y-6">
+    <div>
+      <h2 class="text-2xl font-bold">My Progress</h2>
+      <p id="dash-subtitle" class="text-slate-400 text-sm mt-1"></p>
+    </div>
+
+    <!-- Stats grid -->
+    <div class="grid grid-cols-3 gap-3" id="dash-stats"></div>
+
+    <!-- Skill level badge -->
+    <div class="bg-[#12121e] rounded-2xl p-5 border border-[#2d2d4a]">
+      <div class="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-3">Your Profile</div>
+      <div id="dash-profile"></div>
+    </div>
+
+    <!-- Recent quiz results -->
+    <div class="space-y-3">
+      <div class="text-xs font-semibold uppercase tracking-widest text-slate-500">Recent Assessments</div>
+      <div id="dash-results" class="space-y-2"></div>
+    </div>
+
+    <!-- Topic status list -->
+    <div class="space-y-3">
+      <div class="text-xs font-semibold uppercase tracking-widest text-slate-500">Topics Overview</div>
+      <div id="dash-topics" class="space-y-2"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ TOAST ══════════════════ -->
+<div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#1e1e30] border border-[#2d2d4a] text-sm px-5 py-3 rounded-xl shadow-xl hidden transition-all z-50"></div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────────
+const S = {
+  userId: null,
+  userName: '',
+  careerGoal: '',
+  assessmentDone: false,
+  currentTopicId: null,
+  currentTopicTitle: '',
+  quizQuestions: [],
+  quizIndex: 0,
+  quizScore: 0,
+  quizAnswered: false,
+};
+
+const API = 'http://localhost:8000';
+
+// ── Utils ──────────────────────────────────────────────────────────────────────
+function showView(name) {
+  ['welcome','chat','roadmap','quiz','dashboard'].forEach(v =>
+    document.getElementById('view-'+v).classList.add('hidden')
+  );
+  document.getElementById('view-'+name).classList.remove('hidden');
+}
+
+function toast(msg, duration=3000) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+  setTimeout(() => el.classList.add('hidden'), duration);
+}
+
+function setActive(navId) {
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  const el = document.getElementById(navId);
+  if (el) el.classList.add('active');
+}
+
+// ── Welcome ────────────────────────────────────────────────────────────────────
+async function startAssessment() {
+  const name = document.getElementById('inp-name').value.trim();
+  const goal = document.getElementById('inp-goal').value;
+  if (!name) { toast('Please enter your name'); return; }
+  if (!goal) { toast('Please select a career goal'); return; }
+
+  try {
+    const res = await fetch(`${API}/api/users`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ name, career_goal: goal })
+    });
+    const data = await res.json();
+    S.userId = data.user_id;
+    S.userName = data.name;
+    S.careerGoal = data.career_goal;
+
+    showView('chat');
+    document.getElementById('chat-subtitle').textContent = `Goal: ${goal}`;
+
+    // First AI greeting
+    appendMessage('ai', `Hi ${name}! 👋 I'm CareerAI. I'll help you become a **${goal}**.\n\nLet's start by understanding where you currently are. Have you done any programming before?`);
+    document.getElementById('chat-input').focus();
+  } catch(e) {
+    toast('Could not connect to server. Is the backend running?');
+  }
+}
+
+// ── Chat ───────────────────────────────────────────────────────────────────────
+function appendMessage(role, text) {
+  const wrap = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = `flex ${role==='user' ? 'justify-end' : 'justify-start'}`;
+
+  const bubble = document.createElement('div');
+  bubble.className = `max-w-[80%] px-4 py-3 text-sm leading-relaxed ${role==='user' ? 'bubble-user' : 'bubble-ai'}`;
+  bubble.innerHTML = text.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br/>');
+
+  div.appendChild(bubble);
+  wrap.appendChild(div);
+  wrap.scrollTop = wrap.scrollHeight;
+}
+
+function showTyping() {
+  const wrap = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.id = 'typing-indicator';
+  div.className = 'flex justify-start';
+  div.innerHTML = `<div class="bubble-ai px-4 py-3"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>`;
+  wrap.appendChild(div);
+  wrap.scrollTop = wrap.scrollHeight;
+}
+
+function removeTyping() {
+  const el = document.getElementById('typing-indicator');
+  if (el) el.remove();
+}
+
+async function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const msg = input.value.trim();
+  if (!msg || !S.userId) return;
+
+  input.value = '';
+  appendMessage('user', msg);
+  document.getElementById('send-btn').disabled = true;
+  showTyping();
+
+  try {
+    const res = await fetch(`${API}/api/chat`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ user_id: S.userId, message: msg })
+    });
+    const data = await res.json();
+    removeTyping();
+
+    if (data.assessment) {
+      // Assessment complete — show summary
+      S.assessmentDone = true;
+      document.getElementById('chat-subtitle').textContent = '✅ Assessment Complete';
+      appendMessage('ai', `Great! I've assessed your skills:\n\n📊 Level: **${data.assessment.skill_level}**\n✅ You know: ${data.assessment.known_skills.join(', ') || 'basics'}\n📚 To learn: ${data.assessment.gaps.join(', ')}\n\n${data.assessment.summary}`);
+      document.getElementById('chat-input-area').classList.add('hidden');
+      document.getElementById('roadmap-cta').classList.remove('hidden');
+    } else {
+      appendMessage('ai', data.reply);
+    }
+  } catch(e) {
+    removeTyping();
+    appendMessage('ai', 'Something went wrong. Please try again.');
+  }
+
+  document.getElementById('send-btn').disabled = false;
+  document.getElementById('chat-input').focus();
+}
+
+// ── Roadmap ────────────────────────────────────────────────────────────────────
+async function generateRoadmap() {
+  const btn = document.querySelector('#roadmap-cta button');
+  btn.textContent = '⏳ Building your roadmap...';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(`${API}/api/roadmap/generate`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ user_id: S.userId })
+    });
+    const data = await res.json();
+    showView('roadmap');
+    renderRoadmap(data.topics);
+  } catch(e) {
+    toast('Failed to generate roadmap. Try again.');
+    btn.textContent = '✨ Generate My Personalized Roadmap →';
+    btn.disabled = false;
+  }
+}
+
+function renderRoadmap(topics) {
+  document.getElementById('roadmap-title').textContent = `${S.careerGoal} Roadmap`;
+  document.getElementById('roadmap-subtitle').textContent = `${S.userName}'s personalized learning path`;
+
+  const completed = topics.filter(t => t.status === 'completed').length;
+  const pct = topics.length ? Math.round(completed / topics.length * 100) : 0;
+  document.getElementById('progress-pct').textContent = `${pct}%`;
+  document.getElementById('progress-bar').style.width = `${pct}%`;
+
+  const container = document.getElementById('roadmap-topics');
+  container.innerHTML = '';
+
+  topics.forEach((topic, i) => {
+    const isCompleted = topic.status === 'completed';
+    const isAvailable = topic.status === 'available';
+    const isLocked = topic.status === 'locked';
+
+    const card = document.createElement('div');
+    card.className = `topic-card bg-[#12121e] rounded-2xl p-5 ${isCompleted ? 'completed' : ''} ${isLocked ? 'locked' : ''}`;
+
+    const statusBadge = isCompleted
+      ? `<span class="text-xs px-2 py-1 rounded-full bg-emerald-900 text-emerald-400 font-medium">✓ Completed</span>`
+      : isAvailable
+      ? `<span class="text-xs px-2 py-1 rounded-full bg-violet-900 text-violet-300 font-medium">Available</span>`
+      : `<span class="text-xs px-2 py-1 rounded-full bg-[#1e1e30] text-slate-500 font-medium">🔒 Locked</span>`;
+
+    const actionBtn = isCompleted
+      ? `<button onclick="startQuiz(${topic.id}, '${escapeAttr(topic.title)}')" class="text-xs px-4 py-2 border border-emerald-800 hover:border-emerald-600 text-emerald-400 rounded-lg transition-all">Retake Quiz</button>`
+      : isAvailable
+      ? `<button onclick="startQuiz(${topic.id}, '${escapeAttr(topic.title)}')" class="text-xs px-4 py-2 bg-violet-700 hover:bg-violet-600 rounded-lg font-medium transition-all">Take Quiz →</button>`
+      : '';
+
+    card.innerHTML = `
+      <div class="flex items-start justify-between gap-3">
+        <div class="flex items-start gap-3 flex-1">
+          <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5
+            ${isCompleted ? 'bg-emerald-700 text-white' : isAvailable ? 'bg-violet-700 text-white' : 'bg-[#1e1e30] text-slate-500'}">
+            ${isCompleted ? '✓' : i+1}
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex flex-wrap items-center gap-2 mb-1">
+              <h3 class="font-semibold text-sm">${topic.title}</h3>
+              ${statusBadge}
+            </div>
+            <p class="text-slate-400 text-xs leading-relaxed">${topic.description}</p>
+            <p class="text-slate-600 text-xs mt-1">⏱ ${topic.duration}</p>
+          </div>
+        </div>
+        <div class="flex-shrink-0">${actionBtn}</div>
+      </div>`;
+
+    container.appendChild(card);
+  });
+}
+
+async function loadRoadmap() {
+  try {
+    const res = await fetch(`${API}/api/roadmap/${S.userId}`);
+    const data = await res.json();
+    renderRoadmap(data.topics);
+  } catch(e) {
+    toast('Failed to load roadmap');
+  }
+}
+
+// ── Quiz ───────────────────────────────────────────────────────────────────────
+async function startQuiz(topicId, topicTitle) {
+  S.currentTopicId = topicId;
+  S.currentTopicTitle = topicTitle;
+  S.quizQuestions = [];
+  S.quizIndex = 0;
+  S.quizScore = 0;
+
+  showView('quiz');
+  document.getElementById('quiz-topic-name').textContent = topicTitle;
+  document.getElementById('quiz-loading').classList.remove('hidden');
+  document.getElementById('quiz-content').classList.add('hidden');
+  document.getElementById('quiz-result').classList.add('hidden');
+
+  try {
+    const res = await fetch(`${API}/api/quiz/generate`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ user_id: S.userId, topic_id: topicId })
+    });
+    const data = await res.json();
+    S.quizQuestions = data.questions;
+    document.getElementById('quiz-loading').classList.add('hidden');
+    document.getElementById('quiz-content').classList.remove('hidden');
+    renderQuestion();
+  } catch(e) {
+    toast('Failed to load quiz. Try again.');
+    showView('roadmap');
+  }
+}
+
+function renderQuestion() {
+  const q = S.quizQuestions[S.quizIndex];
+  const total = S.quizQuestions.length;
+  S.quizAnswered = false;
+
+  document.getElementById('quiz-q-num').textContent = `Question ${S.quizIndex+1} of ${total}`;
+  document.getElementById('quiz-progress').style.width = `${(S.quizIndex / total) * 100}%`;
+  document.getElementById('quiz-question').textContent = q.q;
+  document.getElementById('quiz-explanation').classList.add('hidden');
+  document.getElementById('quiz-next-btn').classList.add('hidden');
+
+  const opts = document.getElementById('quiz-options');
+  opts.innerHTML = '';
+  q.options.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'option-btn w-full text-left px-4 py-3 rounded-xl border border-[#2d2d4a] text-sm transition-all';
+    btn.textContent = opt;
+    btn.onclick = () => answerQuestion(i, q.correct, q.explanation);
+    opts.appendChild(btn);
+  });
+}
+
+function answerQuestion(chosen, correct, explanation) {
+  if (S.quizAnswered) return;
+  S.quizAnswered = true;
+
+  const btns = document.querySelectorAll('.option-btn');
+  btns.forEach((btn, i) => {
+    btn.onclick = null;
+    if (i === correct) btn.classList.add('correct');
+    else if (i === chosen && chosen !== correct) btn.classList.add('wrong');
+    else if (i !== chosen) btn.classList.add('reveal');
+  });
+
+  if (chosen === correct) S.quizScore++;
+
+  const expEl = document.getElementById('quiz-explanation');
+  expEl.textContent = `💡 ${explanation}`;
+  expEl.classList.remove('hidden');
+
+  const nextBtn = document.getElementById('quiz-next-btn');
+  nextBtn.classList.remove('hidden');
+  nextBtn.textContent = S.quizIndex + 1 < S.quizQuestions.length ? 'Next Question →' : 'See Results';
+}
+
+async function nextQuestion() {
+  S.quizIndex++;
+  if (S.quizIndex < S.quizQuestions.length) {
+    renderQuestion();
+  } else {
+    await finishQuiz();
+  }
+}
+
+async function finishQuiz() {
+  const total = S.quizQuestions.length;
+  const score = S.quizScore;
+  const pct = Math.round(score / total * 100);
+  const passed = pct >= 60;
+
+  document.getElementById('quiz-content').classList.add('hidden');
+  const resultEl = document.getElementById('quiz-result');
+  resultEl.classList.remove('hidden');
+
+  document.getElementById('result-icon').textContent = passed ? '🏆' : '📚';
+  document.getElementById('result-score').textContent = `${score}/${total} — ${pct}%`;
+  document.getElementById('result-msg').textContent = passed
+    ? `Great job! You passed "${S.currentTopicTitle}"`
+    : `Keep studying "${S.currentTopicTitle}" — you need 60% to pass`;
+
+  const nextDiv = document.getElementById('result-next');
+  nextDiv.innerHTML = `<div class="px-4 py-2 rounded-lg text-sm font-medium ${passed ? 'bg-emerald-900 text-emerald-300' : 'bg-yellow-900 text-yellow-300'}">
+    ${passed ? '✅ Topic unlocked — next topic is now available!' : '🔄 Retry when ready to unlock the next topic'}
+  </div>`;
+
+  try {
+    await fetch(`${API}/api/quiz/submit`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ user_id: S.userId, topic_id: S.currentTopicId, score, total })
+    });
+  } catch(e) {}
+}
+
+// ── Dashboard ──────────────────────────────────────────────────────────────────
+async function showDashboard() {
+  showView('dashboard');
+  setActive('nav-dashboard2');
+  try {
+    const res = await fetch(`${API}/api/progress/${S.userId}`);
+    const data = await res.json();
+    renderDashboard(data);
+  } catch(e) {
+    toast('Failed to load dashboard');
+  }
+}
+
+function renderDashboard(data) {
+  const { stats, user, results, topics } = data;
+
+  document.getElementById('dash-subtitle').textContent =
+    `${user.name} · ${user.career_goal} · ${user.skill_level} level`;
+
+  // Stats grid
+  document.getElementById('dash-stats').innerHTML = `
+    <div class="bg-[#12121e] rounded-2xl p-4 border border-[#2d2d4a] text-center">
+      <div class="text-2xl font-bold text-violet-400">${stats.percent}%</div>
+      <div class="text-xs text-slate-500 mt-1">Complete</div>
+    </div>
+    <div class="bg-[#12121e] rounded-2xl p-4 border border-[#2d2d4a] text-center">
+      <div class="text-2xl font-bold text-emerald-400">${stats.completed}</div>
+      <div class="text-xs text-slate-500 mt-1">Topics Done</div>
+    </div>
+    <div class="bg-[#12121e] rounded-2xl p-4 border border-[#2d2d4a] text-center">
+      <div class="text-2xl font-bold text-yellow-400">${stats.avg_score}%</div>
+      <div class="text-xs text-slate-500 mt-1">Avg Score</div>
+    </div>`;
+
+  // Profile
+  const skills = JSON.parse(user.known_skills || '[]');
+  document.getElementById('dash-profile').innerHTML = `
+    <div class="flex flex-wrap gap-2 mb-3">
+      <span class="px-3 py-1 rounded-full text-xs font-medium bg-violet-900 text-violet-300 capitalize">${user.skill_level}</span>
+      ${skills.map(s => `<span class="px-3 py-1 rounded-full text-xs bg-[#1e1e30] text-slate-300">${s}</span>`).join('')}
+    </div>
+    <p class="text-sm text-slate-400">${user.summary || 'No summary yet.'}</p>`;
+
+  // Results
+  const resEl = document.getElementById('dash-results');
+  if (results.length === 0) {
+    resEl.innerHTML = `<p class="text-slate-600 text-sm">No quizzes taken yet.</p>`;
+  } else {
+    resEl.innerHTML = results.slice(0, 5).map(r => {
+      const pct = Math.round(r.score / r.total * 100);
+      const passed = pct >= 60;
+      return `<div class="flex items-center justify-between bg-[#12121e] rounded-xl px-4 py-3 border border-[#2d2d4a]">
+        <div>
+          <div class="text-sm font-medium">${r.title}</div>
+          <div class="text-xs text-slate-500">${r.completed_at?.split('T')[0] || ''}</div>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-sm font-bold ${passed ? 'text-emerald-400' : 'text-red-400'}">${pct}%</span>
+          <span class="text-xs ${passed ? 'text-emerald-500' : 'text-red-500'}">${passed ? '✓' : '✗'}</span>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // Topics overview
+  document.getElementById('dash-topics').innerHTML = topics.map(t => {
+    const icon = t.status === 'completed' ? '✅' : t.status === 'available' ? '🔵' : '🔒';
+    return `<div class="flex items-center gap-3 px-4 py-2.5 bg-[#12121e] rounded-xl border border-[#1e1e30]">
+      <span>${icon}</span>
+      <span class="text-sm flex-1">${t.title}</span>
+      <span class="text-xs text-slate-500 capitalize">${t.duration}</span>
+    </div>`;
+  }).join('');
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+function escapeAttr(str) {
+  return str.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
+// On roadmap tab click, refresh
+document.getElementById('nav-roadmap').addEventListener('click', () => {
+  setActive('nav-roadmap');
+  loadRoadmap();
+});
+</script>
+</body>
+</html>
